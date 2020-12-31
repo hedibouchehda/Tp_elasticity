@@ -1,0 +1,51 @@
+
+int Np=10;
+real L=20; 
+real H=1; 
+
+border bas(t=0,L){x=t;y=-H;}; 
+border droite(t=-H,H){x=L;y=t;}; 
+border haut(t=0,L){x=L-t;y=H;}; 
+border gauche(t=-H,H){x=0;y=-t;}; 
+
+mesh Th=buildmesh(bas(L*Np)+droite(2*H*Np)+haut(L*Np)+gauche(2*H*Np));
+
+
+//plot(Th,wait=1,ps="poutre_maillage.eps");
+
+
+
+
+
+fespace Vh(Th,P1);
+
+Vh uhx,uhy,vhx,vhy;
+Vh p, fx, fy;
+
+real lambda = 8e5; 
+real mu = 1e6;
+fx = 0.;
+fy = -1.;
+
+macro dd11(uhx)(dx(uhx))//EOM
+macro dd12(uhx,uhy)(0.5*dx(uhy)+0.5*dy(uhx))//EOM
+macro dd22(uhy)(dy(uhy))//EOM
+macro prodtens(uhx,uhy,vhx,vhy)(dd11(uhx)*dd11(vhx)+2.*dd12(uhx,uhy)*dd12(vhx,vhy)+dd22(uhy)*dd22(vhy))//EOM
+
+macro divu(uhx,uhy)(dx(uhx)+dy(uhy))//EOM
+
+problem dam([uhx,uhy],[vhx,vhy]) = int2d(Th)(2.*mu*prodtens(uhx,uhy,vhx,vhy))
+				+int2d(Th)(lambda*divu(uhx,uhy)*divu(vhx,vhy))
+				-int2d(Th)(fx*vhx+fy*vhy)
+				+on(gauche,uhx=0,uhy=0);
+
+dam;
+//plot([uhx,uhy],wait=1,ps="solution_Np10mu2.eps");
+//mesh Th2;
+//Th2=movemesh(Th,[x+uhx,y+uhy]);
+
+mesh Th3;
+Th3 =adaptmesh(Th,uhx) ;
+plot([uhx,uhy],wait=1,ps="adapt_field.eps");
+
+

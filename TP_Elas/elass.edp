@@ -1,0 +1,50 @@
+int Np=15;
+
+real L=1., H=1., ldiag=sqrt(H^2+L^2);
+
+border bas(t=0,1){x=L*t;y=-H;}
+border gauche(t=0,1){x=0.; y=-H*t;}
+border diag(t=0,1){x=L-L*t;y=-H+H*t;}
+
+mesh Th=buildmesh(bas(L*Np)+diag(ldiag*Np)+gauche(H*Np));
+
+
+real rhog=0.05, mu=0.77, lambda=0.53;
+
+fespace Vh(Th,P1);
+
+Vh uhx,uhy,vhx,vhy;
+Vh p, fx, fy;
+
+p = -rhog*y;
+fx = 0.;
+fy = 0.;
+
+macro dd11(uhx)(dx(uhx))//EOM
+macro dd12(uhx,uhy)(0.5*dx(uhy)+0.5*dy(uhx))//EOM
+macro dd22(uhy)(dy(uhy))//EOM
+macro prodtens(uhx,uhy,vhx,vhy)(dd11(uhx)*dd11(vhx)+2.*dd12(uhx,uhy)*dd12(vhx,vhy)+dd22(uhy)*dd22(vhy))//EOM
+
+macro divu(uhx,uhy)(dx(uhx)+dy(uhy))//EOM
+
+problem dam([uhx,uhy],[vhx,vhy]) = int2d(Th)(2.*mu*prodtens(uhx,uhy,vhx,vhy))
+				+int2d(Th)(lambda*divu(uhx,uhy)*divu(vhx,vhy))
+				-int2d(Th)(fx*vhx+fy*vhy)
+				-int1d(Th,gauche)(p*vhx)
+				+on(bas,uhx=0,uhy=0);
+
+//plot(Th,wait=1,ps="maillage_triangle.eps");
+dam;
+plot([uhx,uhy],wait=1,ps="solution_Np15.eps");
+// pour mieux visualiser
+mesh Th2;
+Th2=movemesh(Th,[x+uhx,y+uhy]);
+plot(Th,Th2,[uhx,uhy],wait=1,ps="mesh_moving.eps");
+
+mesh Th3;
+Th3 =adaptmesh(Th,uhx) ;
+plot(Th3,[uhx,uhy],wait=1);
+
+
+
+

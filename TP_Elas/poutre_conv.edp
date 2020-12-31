@@ -1,0 +1,73 @@
+ofstream convU("poutre_convergence.txt"); 
+
+
+int Np1=120;
+real L=20; 
+real H=1; 
+
+border bas(t=0,L){x=t;y=-H;}; 
+border droite(t=-H,H){x=L;y=t;}; 
+border haut(t=0,L){x=L-t;y=H;}; 
+border gauche(t=-H,H){x=0;y=-t;}; 
+
+mesh Th1=buildmesh(bas(L*Np1)+droite(2*H*Np1)+haut(L*Np1)+gauche(2*H*Np1));
+
+
+//plot(Th,wait=1,ps="poutre_maillage.eps");
+
+
+
+
+
+fespace Vh1(Th1,P1);
+
+Vh1 uex,uey,vex,vey;
+Vh1 p1, fx1, fy1;
+
+real lambda = 8e5; 
+real mu = 1e6;
+fx1 = 0.;
+fy1 = -1.;
+
+macro dd11(uex)(dx(uex))//EOM
+macro dd12(uex,uey)(0.5*dx(uey)+0.5*dy(uex))//EOM
+macro dd22(uey)(dy(uey))//EOM
+macro prodtens(uex,uey,vex,vey)(dd11(uex)*dd11(vex)+2.*dd12(uex,uey)*dd12(vex,vey)+dd22(uey)*dd22(vey))//EOM
+
+macro divu(uex,uey)(dx(uex)+dy(uey))//EOM
+
+problem dam1([uex,uey],[vex,vey]) = int2d(Th1)(2.*mu*prodtens(uex,uey,vex,vey))
+				+int2d(Th1)(lambda*divu(uex,uey)*divu(vex,vey))
+				-int2d(Th1)(fx1*vex+fy1*vey)
+				+on(gauche,uex=0,uey=0);
+
+dam1;
+int Np ; 
+for (int k=0;k<4;k++)
+{
+    Np=10*2^k;
+    mesh Th=buildmesh(bas(L*Np)+droite(2*H*Np)+haut(L*Np)+gauche(2*H*Np));
+    fespace Vh(Th,P1);
+
+    Vh uhx,uhy,vhx,vhy;
+    Vh p, fx, fy;
+    fx = 0.;
+    fy = -1.;
+    problem dam([uhx,uhy],[vhx,vhy]) = int2d(Th)(2.*mu*prodtens(uhx,uhy,vhx,vhy))
+				+int2d(Th)(lambda*divu(uhx,uhy)*divu(vhx,vhy))
+				-int2d(Th)(fx*vhx+fy*vhy)
+				+on(gauche,uhx=0,uhy=0);
+    dam; 
+    real errH1U;
+
+    errH1U=sqrt( int2d(Th)( (uex-uhx)^2+(uey-uhy)^2)
+             + int2d(Th)( (dx(uex)-dx(uhx))^2 + (dx(uey)-dx(uhy))^2 ) 
+             + int2d(Th)( (dy(uex)-dy(uhx))^2 + (dy(uey)-dy(uhy))^2 )
+            ); 
+    convU<<1./Np<<" "<<errH1U<<endl;
+}
+/*
+mesh Th2;
+Th2=movemesh(Th,[x+uhx,y+uhy]);
+plot(Th,Th2,wait=1,ps="moving_meshNp10.eps");
+*/

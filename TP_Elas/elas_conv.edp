@@ -1,0 +1,82 @@
+
+ofstream convU("convergence_U1.txt");
+int Np1=8e2;
+
+real L=1., H=1., ldiag=sqrt(H^2+L^2);
+
+border bas(t=0,1){x=L*t;y=-H;}
+border gauche(t=0,1){x=0.; y=-H*t;}
+border diag(t=0,1){x=L-L*t;y=-H+H*t;}
+
+mesh Th1=buildmesh(bas(L*Np1)+diag(ldiag*Np1)+gauche(H*Np1));
+
+real rhog=0.05, mu=0.77, lambda=0.53;
+fespace Vh1(Th1,P1);
+ 
+Vh1 uex,uey,vex,vey;
+Vh1 p1, fx1, fy1;
+
+p1 = -rhog*y;
+fx1 = 0.;
+fy1 = 0.;
+
+macro dd11(uex)(dx(uex))//EOM
+macro dd12(uex,uey)(0.5*dx(uey)+0.5*dy(uex))//EOM
+macro dd22(uey)(dy(uey))//EOM
+macro prodtens(uex,uey,vex,vey)(dd11(uex)*dd11(vex)+2.*dd12(uex,uey)*dd12(vex,vey)+dd22(uey)*dd22(vey))//EOM
+macro divu(uex,uey)(dx(uex)+dy(uey))//EOM
+
+problem dam1([uex,uey],[vex,vey]) = int2d(Th1)(2.*mu*prodtens(uex,uey,vex,vey))
+				+int2d(Th1)(lambda*divu(uex,uey)*divu(vex,vey))
+				-int2d(Th1)(fx1*vex+fy1*vey)
+				-int1d(Th1,gauche)(p1*vex)
+				+on(bas,uex=0,uey=0);
+
+dam1; 
+
+int Np; 
+for (int k=0;k<6;k++) 
+{
+	Np=10*2^k; 
+	mesh Th=buildmesh(bas(L*Np)+diag(ldiag*Np)+gauche(H*Np));
+	fespace Vh(Th,P1); 
+	Vh uhx,uhy,vhx,vhy; 
+	Vh p,fx,fy;
+	p = -rhog*y;
+	fx = 0.;
+	fy = 0.; 
+
+	problem dam([uhx,uhy],[vhx,vhy]) = int2d(Th)(2.*mu*prodtens(uhx,uhy,vhx,vhy))
+				+int2d(Th)(lambda*divu(uhx,uhy)*divu(vhx,vhy))
+				-int2d(Th)(fx*vhx+fy*vhy)
+				-int1d(Th,gauche)(p*vhx)
+				+on(bas,uhx=0,uhy=0);
+
+	dam; 
+	real errH1U;
+
+    errH1U=sqrt( int2d(Th)( (uex-uhx)^2+(uey-uhy)^2)
+             + int2d(Th)( (dx(uex)-dx(uhx))^2 + (dx(uey)-dx(uhy))^2 ) 
+             + int2d(Th)( (dy(uex)-dy(uhx))^2 + (dy(uey)-dy(uhy))^2 )
+            );
+	convU<<1./Np<<" "<<errH1U<<endl;
+
+}
+
+
+
+
+//plot([uex,uey],wait=1,ps="solution_exacte.eps");
+// pour mieux visualiser
+//mesh Th2;
+//Th2=movemesh(Th,[x+uhx,y+uhy]);
+//plot(Th,Th2,[uhx,uhy],wait=1);
+
+/*
+mesh Th3;
+Th3 =adaptmesh(Th,uhx) ;
+plot(Th3,[uhx,uhy],wait=1);
+*/
+
+
+

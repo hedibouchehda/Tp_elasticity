@@ -1,0 +1,16 @@
+
+
+mesh Th = square(2, 2);
+// Fespace
+fespace Xh(Th, P1);
+Xh uh = x^2 + y^2, vh;
+plot(Th,uh,wait=1);
+
+// Change the mesh
+Th = square(5,5);
+
+// Plot
+
+uh = uh; //do a interpolation of uh (old) of 5x5 mesh
+        //to get the new uh on 10x10 mesh
+plot(Th,uh,wait=1);
